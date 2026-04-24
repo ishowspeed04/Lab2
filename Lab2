@@ -1,0 +1,114 @@
+
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX_USERS 100
+#define MAX_TXN   100
+
+typedef struct {
+    int userID;
+    int txnNumber;
+    int arrivalTime;
+    int duration;
+    int inputOrder;
+} Transaction;
+
+int cmpTxn(const void *a, const void *b)
+{
+    const Transaction *ta = (const Transaction *)a;
+    const Transaction *tb = (const Transaction *)b;
+    if (ta->arrivalTime != tb->arrivalTime)
+        return ta->arrivalTime - tb->arrivalTime;
+    if (ta->inputOrder != tb->inputOrder)
+        return ta->inputOrder  - tb->inputOrder;
+    return  ta->txnNumber  - tb->txnNumber;
+}
+
+int main(void)
+{
+    int n;
+    printf("Enter the number of users: ");
+    scanf("%d", &n);
+
+    if (n <= 0 || n > MAX_USERS) {
+        fprintf(stderr, "Invalid number of users (1-%d).\n", MAX_USERS);
+        return 1;
+    }
+
+    int maxTotal = n * MAX_TXN;
+    Transaction *queue = (Transaction *)malloc(maxTotal * sizeof(Transaction));
+    if (!queue) { fprintf(stderr, "Out of memory.\n"); return 1; }
+
+    int total = 0;
+
+    /* ---- Phase 1: Input ---------------------------------------- */
+    for (int u = 0; u < n; u++) {
+        int uid, startTime, numTxn;
+
+        printf("\nEnter data for User %d\n", u + 1);
+        printf("Enter user ID: ");
+        scanf("%d", &uid);
+        printf("Enter starting time: ");
+        scanf("%d", &startTime);
+        printf("Enter the number of transactions: ");
+        scanf("%d", &numTxn);
+
+        if (numTxn <= 0 || numTxn > MAX_TXN) {
+            fprintf(stderr, "Invalid transaction count (1-%d).\n", MAX_TXN);
+            free(queue);
+            return 1;
+        }
+
+        printf("Enter the durations of the transactions: ");
+        for (int t = 0; t < numTxn; t++) {
+            int dur;
+            scanf("%d", &dur);
+            queue[total].userID      = uid;
+            queue[total].txnNumber   = t + 1;
+            queue[total].arrivalTime = startTime;
+            queue[total].duration    = dur;
+            queue[total].inputOrder  = u;
+            total++;
+        }
+    }
+
+    /* ---- Phase 2: Sort into FCFS order ------------------------- */
+    qsort(queue, total, sizeof(Transaction), cmpTxn);
+
+    /* ---- Phase 3: Simulate CPU execution ----------------------- */
+    printf("\n");
+    int currentTime = 0;
+    int totalWait   = 0;
+
+    for (int i = 0; i < total; i++) {
+        Transaction *T = &queue[i];
+
+        if (currentTime < T->arrivalTime)
+            currentTime = T->arrivalTime;
+
+        int startTime = currentTime;
+        int endTime   = startTime + T->duration;
+        int waitTime  = startTime - T->arrivalTime;
+
+        printf("User %d Transaction %d: Start time: %d  End time: %d  "
+               "Waiting time: %d - %d = %d seconds\n",
+               T->userID, T->txnNumber,
+               startTime, endTime,
+               startTime, T->arrivalTime, waitTime);
+
+        totalWait   += waitTime;
+        currentTime  = endTime;
+    }
+
+    /* ---- Phase 4: Average waiting time ------------------------- */
+    if (total > 0) {
+        double avgWait = (double)totalWait / total;
+        printf("\nAverage waiting time: %.2f seconds\n", avgWait);
+    } else {
+        printf("\nNo transactions processed.\n");
+    }
+
+    free(queue);
+    return 0;
+}
